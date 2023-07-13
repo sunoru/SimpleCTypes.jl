@@ -1,0 +1,4 @@
+name = "SimpleCTypes"
+uuid = "357a5a63-a2bd-4f40-8c00-16b25e94246d"
+authors = ["スノル <s@sunoru.com>"]
+version = "0.1.0"
