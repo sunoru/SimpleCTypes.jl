@@ -10,6 +10,7 @@ using SimpleCTypes
         @test_throws ErrorException f_ptr()
         @test_throws ErrorException f_ptr(1, 2)
     end
+    @test sizeof(f_ptr) == sizeof(Ptr{Nothing})
 
     struct SomeStruct
         x::Int
@@ -20,6 +21,7 @@ using SimpleCTypes
 
     add_ptr, _ = @cfunc(+, Int, (Int, Int))
     ss = SomeStruct(1, 2, add_ptr)
+    @test isbitstype(SomeStruct)
     @test ff(ss) == 3
     @test_throws MethodError SomeStruct(2, 3, f_ptr)
 
