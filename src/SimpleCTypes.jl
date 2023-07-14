@@ -1,7 +1,7 @@
 """
     SimpleCTypes.jl
 
-This zero-dependency package provides some simple definitions of C types, especially:
+This zero-dependency package provides some simple definitions of C types, specifically:
 
 - `CfuncPtr` for C function pointers
 - `Carray` for fixed-size C arrays
@@ -11,6 +11,6 @@ module SimpleCTypes
 
 include("./function.jl")
 include("./array.jl")
-# include("./union.jl")
+include("./union.jl")
 
-end # module CTypes
+end # module SimpleCTypes
