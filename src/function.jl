@@ -7,7 +7,7 @@ A strictly typed C function pointer.
 
 To wrap a function, use `@cfunc`.
 """
-struct CfuncPtr{TReturn,TArgs}
+struct CfuncPtr{TReturn,TArgs<:Tuple}
     ptr::Ptr{Cvoid}
     CfuncPtr{TReturn,TArgs}(ptr::Ptr) where {TReturn,TArgs} = new{TReturn,TArgs}(Ptr{Cvoid}(ptr))
     CfuncPtr{TReturn,TArgs}(cp::CfuncPtr) where {TReturn,TArgs} = new{TReturn,TArgs}(cp.ptr)
