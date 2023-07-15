@@ -1,5 +1,10 @@
 export Carray, @Carray
 
+"""
+    Carray{TElement,TDims,TNDims,TSize}
+
+See `@Carray`.
+"""
 struct Carray{TElement,TDims<:Tuple,TNDims,TSize} <: AbstractArray{TElement,TNDims}
     data::NTuple{TSize,TElement}
     Carray{TElement,TDims,TNDims,TSize}(data::NTuple{TSize,TElement}) where {TElement,TDims,TNDims,TSize} =
@@ -64,7 +69,7 @@ end
 Base.eltype(::Carray{T}) where {T} = T
 Base.convert(::Type{T}, t::Tuple) where {T<:Carray} = T(t)
 Base.convert(::Type{T}, a::AbstractArray) where {T<:Carray} = T(a)
-Base.ndims(::Type{<:Carray{<:Any,TDims}}) where {TDims} = length(TDims.parameters)
+@generated Base.ndims(::Type{<:Carray{<:Any,TDims}}) where {TDims} = :($(length(TDims.parameters)))
 Base.ndims(::T) where {T<:Carray} = ndims(T)
 
 Base.IndexStyle(::Type{<:Carray}) = IndexCartesian()

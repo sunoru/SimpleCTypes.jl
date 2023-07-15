@@ -6,7 +6,9 @@ using SimpleCTypes
 
     a = ones(3, 2)
     aa = @Carray{Float64, 2, 3}(a)
-    @test aa == ones(2, 3)
+    @test length(aa) == 6
+    @test size(aa) == (2, 3)
+    @test ndims(aa) == 2
     @test sizeof(aa) == 3 * 2 * sizeof(Float64)
 
     struct Foo
@@ -16,7 +18,7 @@ using SimpleCTypes
 
     arr = rand(4)
     matrix = reshape(1:24, (4, 3, 2))
-    # The conversion from `Array` to `CArray` should happen automatically.
+    # The conversion from `Array` to `Carray` should happen automatically.
     foo = Foo(arr, matrix)
     @test foo.matrix[1, 2, 2:4] == [6, 7, 8]
     @test isbitstype(Foo)

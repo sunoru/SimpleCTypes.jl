@@ -1,6 +1,10 @@
 export Cunion, @Cunion
-export membernames, membercount, membertype
 
+"""
+    Cunion{TMemberNames,TMemberTypes,TSize}
+
+See `@Cunion`.
+"""
 struct Cunion{TMemberNames<:Tuple,TMemberTypes<:Tuple,TSize}
     data::NTuple{TSize,UInt8}
     Cunion{TMemberNames,TMemberTypes,TSize}(
@@ -23,14 +27,32 @@ end
         $TCunion(bytes[])
     end
 end
+Cunion{TMemberNames,TMemberTypes,TSize}(x::NamedTuple) where {TMemberNames,TMemberTypes,TSize} =
+    Cunion{TMemberNames,TMemberTypes,TSize}(; x...)
+Base.convert(::Type{T}, x::NamedTuple) where {T<:Cunion} = T(x)
 
-@generated function membernames(::Type{<:Cunion{TMemberNames}}) where {TMemberNames}
+@generated function Base.fieldnames(::Type{<:Cunion{TMemberNames}}) where {TMemberNames}
     t = Tuple(TMemberNames.parameters)
     :($t)
 end
-@generated function membercount(::Type{<:Cunion{TMemberNames}}) where {TMemberNames}
-    len = length(TMemberNames.parameters)
-    :($len)
+Base.fieldname(::Type{<:Cunion{TMemberNames}}, i::Integer) where {TMemberNames} =
+    TMemberNames.parameters[i]
+@generated Base.fieldcount(::Type{<:Cunion{TMemberNames}}) where {TMemberNames} =
+    :($(length(TMemberNames.parameters)))
+function Base.fieldindex(::Type{<:Cunion{TMemberNames}}, name::Symbol) where {TMemberNames}
+    names = TMemberNames.parameters
+    for (i, n) in enumerate(names)
+        n == name && return i
+    end
+    error("Member $name not found in union")
+end
+function Base.fieldoffset(::Type{T}, i::Integer) where {T<:Cunion}
+    i ≤ fieldcount(T) || throw(BoundsError(T, i))
+    zero(UInt)
+end
+@generated function Base.fieldtypes(::Type{<:Cunion{<:Any,TMemberTypes}}) where {TMemberTypes}
+    t = Tuple(TMemberTypes.parameters)
+    :($t)
 end
 @inline @generated function membertype(
     ::Type{<:Cunion{TMemberNames,TMemberTypes}}, name::Symbol
@@ -44,7 +66,7 @@ end
     end
     quote
         $conds
-        error("Field $name not found in union")
+        error("Member $name not found in union")
     end
 end
 
@@ -59,21 +81,22 @@ function Base.getproperty(u::T, name::Symbol) where {T<:Cunion}
 end
 
 """
-    @Cunion begin
+    const MyUnion = @Cunion begin
         i::Int64
         f::Float64
         A::@Carray{Int32, 2}
         ...
     end [nbytes]
 
-Declare a C union type with the specified fields.
+Declare a C union type with the specified members.
 It can then be used to create instances like `MyUnion(i=1)` or `MyUnion(A=[1, 2])`.
 
 Note that:
 
-- The union instance is immutable, so you need to create a new instance to change its fields.
+- The union instance is immutable, so you need to create a new instance to change its members.
 - `nbytes` is the size of the union in bytes.
 If not specified, it is computed automatically with the default alignment.
+- Though "members" are different from "fields", generic functions like `fieldnames` and `fieldcount` are defined for unions.
 """
 macro Cunion(body, nbytes=nothing)
     members = [
@@ -86,7 +109,7 @@ macro Cunion(body, nbytes=nothing)
     TMemberTypes = :(Tuple{$((member[2] for member in members)...)})
     max_size = :(
         max(
-        $((:(sizeof($(member[2]))) for member in members)...)
+        $((:(sizeof($([2]))) for member in members)...)
     )
     )
     TSize = if isnothing(nbytes)
