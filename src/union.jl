@@ -5,7 +5,7 @@ export Cunion, @Cunion
 
 See `@Cunion`.
 """
-struct Cunion{TMemberNames<:Tuple,TMemberTypes<:Tuple,TSize}
+struct Cunion{TMemberNames,TMemberTypes<:Tuple,TSize}
     data::NTuple{TSize,UInt8}
     Cunion{TMemberNames,TMemberTypes,TSize}(
         data::NTuple{TSize,UInt8}
@@ -31,17 +31,11 @@ Cunion{TMemberNames,TMemberTypes,TSize}(x::NamedTuple) where {TMemberNames,TMemb
     Cunion{TMemberNames,TMemberTypes,TSize}(; x...)
 Base.convert(::Type{T}, x::NamedTuple) where {T<:Cunion} = T(x)
 
-@generated function Base.fieldnames(::Type{<:Cunion{TMemberNames}}) where {TMemberNames}
-    t = Tuple(TMemberNames.parameters)
-    :($t)
-end
-Base.fieldname(::Type{<:Cunion{TMemberNames}}, i::Integer) where {TMemberNames} =
-    TMemberNames.parameters[i]
-@generated Base.fieldcount(::Type{<:Cunion{TMemberNames}}) where {TMemberNames} =
-    :($(length(TMemberNames.parameters)))
+Base.fieldnames(::Type{<:Cunion{TMemberNames}}) where {TMemberNames} = TMemberNames
+Base.fieldname(::Type{<:Cunion{TMemberNames}}, i::Integer) where {TMemberNames} = TMemberNames[i]
+Base.fieldcount(::Type{<:Cunion{TMemberNames}}) where {TMemberNames} = length(TMemberNames)
 function Base.fieldindex(::Type{<:Cunion{TMemberNames}}, name::Symbol) where {TMemberNames}
-    names = TMemberNames.parameters
-    for (i, n) in enumerate(names)
+    for (i, n) in enumerate(TMemberNames)
         n == name && return i
     end
     error("Member $name not found in union")
@@ -57,10 +51,9 @@ end
 @inline @generated function membertype(
     ::Type{<:Cunion{TMemberNames,TMemberTypes}}, name::Symbol
 ) where {TMemberNames,TMemberTypes}
-    names = TMemberNames.parameters
     types = TMemberTypes.parameters
     conds = Expr(:block)
-    for (name, type) in zip(names, types)
+    for (name, type) in zip(TMemberNames, types)
         name_symbol = QuoteNode(name)
         push!(conds.args, :($name_symbol ≡ name && return $type))
     end
@@ -100,18 +93,20 @@ If not specified, it is computed automatically with the default alignment.
 """
 macro Cunion(body, nbytes=nothing)
     members = [
-        let (key, typ) = x.args
-            (key, esc(typ))
+        let (name, type) = x.args
+            (name, esc(type))
         end for x in body.args
         if x isa Expr && x.head == :(::)
     ]
-    TMemberNames = Tuple{(member[1] for member in members)...}
-    TMemberTypes = :(Tuple{$((member[2] for member in members)...)})
-    max_size = :(
-        max(
-        $((:(sizeof($([2]))) for member in members)...)
-    )
-    )
+    TMemberNames = tuple((name for (name, _) in members)...)
+    TMemberTypes = :(Tuple{$((type for (_, type) in members)...)})
+    max_size = :(let max_size = 0
+        for T in Ts.parameters
+            isbitstype(T) || throw(ArgumentError("Union member type must be a bitstype"))
+            max_size = max(max_size, sizeof(T))
+        end
+        max_size
+    end)
     TSize = if isnothing(nbytes)
         align = Sys.WORD_SIZE ÷ 8
         :(
@@ -123,11 +118,11 @@ macro Cunion(body, nbytes=nothing)
         esc(nbytes)
     end
     :(
-        let ts = $TMemberTypes
+        let Ts = $TMemberTypes
             max_size = $max_size
             tsize = $TSize
             tsize ≥ max_size || throw(ArgumentError("Union size is too small"))
-            Cunion{$TMemberNames,ts,tsize}
+            Cunion{$TMemberNames,Ts,tsize}
         end
     )
 end
